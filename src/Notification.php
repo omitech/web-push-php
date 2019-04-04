@@ -33,7 +33,7 @@ class Notification
 
     public function __construct($endpoint, $payload, $userPublicKey, $userAuthToken, $options, $auth)
     {
-        $this->endpoint = $endpoint;
+        $this->endpoint = str_ireplace('//android.googleapis.com/gcm/send', '//fcm.googleapis.com/fcm/send', $endpoint);
         $this->payload = $payload;
         $this->userPublicKey = $userPublicKey;
         $this->userAuthToken = $userAuthToken;
