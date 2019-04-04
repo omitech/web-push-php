@@ -18,7 +18,7 @@ use GuzzleHttp\Promise;
 
 class WebPush
 {
-    const GCM_URL = 'https://android.googleapis.com/gcm/send';
+    const GCM_URL = 'https://fcm.googleapis.com/fcm/send';
 
     /** @var Client */
     protected $client;
