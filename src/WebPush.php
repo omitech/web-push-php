@@ -237,8 +237,10 @@ class WebPush
             if (isset($options['topic'])) {
                 $headers['Topic'] = $options['topic'];
             }
-
-            if (array_key_exists('VAPID', $auth)) {
+            
+            if (!array_key_exists('VAPID', $auth) && !array_key_exists('GCM', $auth)) {
+                throw new \ErrorException('VAPID or GCM API (depreciated) Key must be specified.');
+            } elseif (array_key_exists('VAPID', $auth)) {
                 $vapid = $auth['VAPID'];
 
                 $audience = parse_url($endpoint, PHP_URL_SCHEME).'://'.parse_url($endpoint, PHP_URL_HOST);
@@ -259,9 +261,7 @@ class WebPush
                 }
             } elseif(array_key_exists('GCM', $auth) && substr($endpoint, 0, strlen(self::GCM_URL)) === self::GCM_URL) {
                 $headers['Authorization'] = 'key='.$auth['GCM'];
-            } else {
-                throw new \ErrorException('No VAPID or GCM API Key specified.');
-            }
+            } 
             
             $requests[] = new Request('POST', $endpoint, $headers, $content);
         }
