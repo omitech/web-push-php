@@ -238,16 +238,7 @@ class WebPush
                 $headers['Topic'] = $options['topic'];
             }
 
-            // if GCM
-            if (substr($endpoint, 0, strlen(self::GCM_URL)) === self::GCM_URL) {
-                if (array_key_exists('GCM', $auth)) {
-                    $headers['Authorization'] = 'key='.$auth['GCM'];
-                } else {
-                    throw new \ErrorException('No GCM API Key specified.');
-                }
-            }
-            // if VAPID (GCM doesn't support it but FCM does)
-            elseif (array_key_exists('VAPID', $auth)) {
+            if (array_key_exists('VAPID', $auth)) {
                 $vapid = $auth['VAPID'];
 
                 $audience = parse_url($endpoint, PHP_URL_SCHEME).'://'.parse_url($endpoint, PHP_URL_HOST);
@@ -266,8 +257,12 @@ class WebPush
                 } else {
                     $headers['Crypto-Key'] = $vapidHeaders['Crypto-Key'];
                 }
+            } elseif(array_key_exists('GCM', $auth) && substr($endpoint, 0, strlen(self::GCM_URL)) === self::GCM_URL) {
+                $headers['Authorization'] = 'key='.$auth['GCM'];
+            } else {
+                throw new \ErrorException('No VAPID or GCM API Key specified.');
             }
-
+            
             $requests[] = new Request('POST', $endpoint, $headers, $content);
         }
 
