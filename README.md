@@ -1,6 +1,8 @@
 # WebPush
 > Web Push library for PHP
 
+Branch 1.4.5 for PHP 5.6 : uses VAPID if provided, otherwise GCM key for authorization
+
 [![Build Status](https://travis-ci.org/web-push-libs/web-push-php.svg?branch=master)](https://travis-ci.org/web-push-libs/web-push-php)
 [![SensioLabsInsight](https://insight.sensiolabs.com/projects/d60e8eea-aea1-4739-8ce0-a3c3c12c6ccf/mini.png)](https://insight.sensiolabs.com/projects/d60e8eea-aea1-4739-8ce0-a3c3c12c6ccf)
 
