@@ -20,6 +20,8 @@ final class PushServiceTest extends PHPUnit\Framework\TestCase
     private static $portNumber = 9012;
     private static $testSuiteId;
     private static $testServiceUrl;
+    private static $gcmSenderId = '759071690750';
+    private static $gcmApiKey = 'AIzaSyBAU0VfXoskxUSg81K5VgLgwblHbZWe6tA';
     private static $vapidKeys = [
         'subject' => 'http://test.com',
         'publicKey' => 'BA6jvk34k6YjElHQ6S0oZwmrsqHdCNajxcod6KJnI77Dagikfb--O_kYXcR2eflRz6l3PcI2r8fPCH3BElLQHDk',
@@ -61,10 +63,30 @@ final class PushServiceTest extends PHPUnit\Framework\TestCase
     public function browserProvider()
     {
         return [
-            ['firefox', 'stable', ['VAPID' => self::$vapidKeys]],
-            ['firefox', 'beta', ['VAPID' => self::$vapidKeys]],
+            // Web Push
+            ['firefox', 'stable', []],
+            ['firefox', 'beta', []],
+
+            // Web Push + GCM
+            ['chrome', 'stable', ['GCM' => self::$gcmApiKey]],
+            ['chrome', 'beta', ['GCM' => self::$gcmApiKey]],
+
+            ['firefox', 'stable', ['GCM' => self::$gcmApiKey]],
+            ['firefox', 'beta', ['GCM' => self::$gcmApiKey]],
+
+            // Web Push + VAPID
             ['chrome', 'stable', ['VAPID' => self::$vapidKeys]],
             ['chrome', 'beta', ['VAPID' => self::$vapidKeys]],
+
+            ['firefox', 'stable', ['VAPID' => self::$vapidKeys]],
+            ['firefox', 'beta', ['VAPID' => self::$vapidKeys]],
+
+            // Web Push + GCM + VAPID
+            ['chrome', 'stable', ['GCM' => self::$gcmApiKey, 'VAPID' => self::$vapidKeys]],
+            ['chrome', 'beta', ['GCM' => self::$gcmApiKey, 'VAPID' => self::$vapidKeys]],
+
+            ['firefox', 'stable', ['GCM' => self::$gcmApiKey, 'VAPID' => self::$vapidKeys]],
+            ['firefox', 'beta', ['GCM' => self::$gcmApiKey, 'VAPID' => self::$vapidKeys]],
         ];
     }
 
@@ -109,6 +131,10 @@ final class PushServiceTest extends PHPUnit\Framework\TestCase
                 'browserVersion' => $browserVersion,
             ];
 
+            if (array_key_exists('GCM', $options)) {
+                $subscriptionParameters['gcmSenderId'] = self::$gcmSenderId;
+            }
+
             if (array_key_exists('VAPID', $options)) {
                 $subscriptionParameters['vapidPublicKey'] = self::$vapidKeys['publicKey'];
             }
@@ -149,37 +175,49 @@ final class PushServiceTest extends PHPUnit\Framework\TestCase
                 }
 
                 $subscription = new Subscription($endpoint, $p256dh, $auth, $contentEncoding);
-                $report = $this->webPush->sendOneNotification($subscription, $payload);
-                $this->assertInstanceOf(\Generator::class, $report);
-                $this->assertInstanceOf(\Minishlink\WebPush\MessageSentReport::class, $report);
-                $this->assertTrue($report->isSuccess());
 
-                $dataString = json_encode([
-                    'testSuiteId' => self::$testSuiteId,
-                    'testId' => $testId,
-                ]);
+                try {
+                    $report = $this->webPush->sendOneNotification($subscription, $payload);
+                    $this->assertInstanceOf(\Minishlink\WebPush\MessageSentReport::class, $report);
+                    $this->assertTrue($report->isSuccess());
 
-                $getNotificationCurl = curl_init(self::$testServiceUrl.'/api/get-notification-status/');
-                curl_setopt_array($getNotificationCurl, [
-                    CURLOPT_POST => true,
-                    CURLOPT_POSTFIELDS => $dataString,
-                    CURLOPT_RETURNTRANSFER => true,
-                    CURLOPT_HTTPHEADER => [
-                        'Content-Type: application/json',
-                        'Content-Length: '.strlen($dataString),
-                    ],
-                    CURLOPT_TIMEOUT => self::$timeout,
-                ]);
+                    $dataString = json_encode([
+                        'testSuiteId' => self::$testSuiteId,
+                        'testId' => $testId,
+                    ]);
 
-                $parsedResp = $this->getResponse($getNotificationCurl);
+                    $getNotificationCurl = curl_init(self::$testServiceUrl.'/api/get-notification-status/');
+                    curl_setopt_array($getNotificationCurl, [
+                        CURLOPT_POST => true,
+                        CURLOPT_POSTFIELDS => $dataString,
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_HTTPHEADER => [
+                            'Content-Type: application/json',
+                            'Content-Length: '.strlen($dataString),
+                        ],
+                        CURLOPT_TIMEOUT => self::$timeout,
+                    ]);
 
-                if (!property_exists($parsedResp->{'data'}, 'messages')) {
-                    throw new Exception('web-push-testing-service error, no messages: '.json_encode($parsedResp));
+                    $parsedResp = $this->getResponse($getNotificationCurl);
+
+                    if (!property_exists($parsedResp->{'data'}, 'messages')) {
+                        throw new Exception('web-push-testing-service error, no messages: '.json_encode($parsedResp));
+                    }
+
+                    $messages = $parsedResp->{'data'}->{'messages'};
+                    $this->assertEquals(1, count($messages));
+                    $this->assertEquals($payload, $messages[0]);
+                } catch (Exception $e) {
+                    if (strpos($endpoint, 'https://android.googleapis.com/gcm/send') === 0
+                        && !array_key_exists('GCM', $options)) {
+                        if ($e->getMessage() !== 'No GCM API Key specified.') {
+                            echo $e;
+                        }
+                        $this->assertEquals($e->getMessage(), 'No GCM API Key specified.');
+                    } else {
+                        throw $e;
+                    }
                 }
-
-                $messages = $parsedResp->{'data'}->{'messages'};
-                $this->assertEquals(1, count($messages));
-                $this->assertEquals($payload, $messages[0]);
             }
         };
     }

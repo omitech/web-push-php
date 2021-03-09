@@ -24,7 +24,7 @@ class Notification
     /** @var array Options : TTL, urgency, topic */
     private $options;
 
-    /** @var array Auth details : VAPID */
+    /** @var array Auth details : GCM, VAPID */
     private $auth;
 
     /**
